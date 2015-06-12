@@ -32,8 +32,8 @@
     http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd ">
 
   <!-- set global properties -->
-  <global-property name="host" value="dev-esb-2"/>
-  <global-property name="port" value="8007"/>
+  <global-property name="host" value="xxx"/>
+  <global-property name="port" value="xxx"/>
 
   <vm:connector name="memory">
     <vm:queue-profile maxOutstandingMessages="500"/>
@@ -42,9 +42,9 @@
 
   <spring:bean id="MononokePool" name="Mononoke" class="org.enhydra.jdbc.standard.StandardXADataSource" destroy-method="shutdown">
     <spring:property name="driverName" value="oracle.jdbc.driver.OracleDriver"/>
-    <spring:property name="url" value="jdbc:oracle:thin:@10.20.57.125:1521:BERTHA"/>
-    <spring:property name="user" value="MONONOKE" />
-    <spring:property name="password" value="Password1" />
+    <spring:property name="url" value="jdbc:oracle:thin:@xxx:xx:x"/>
+    <spring:property name="user" value="xx" />
+    <spring:property name="password" value="xx" />
     <spring:property name="minCon" value="10" />
     <spring:property name="maxCon" value="100" />
   </spring:bean>
