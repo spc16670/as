@@ -1,0 +1,9 @@
+{
+  "user": "test1",
+  "release": "101",
+  "hostname": "testhost",
+  "port": "78",
+  "mac": "1234",
+  "timestamp": "12345678",
+  "ip": "1.1.1.1"
+}

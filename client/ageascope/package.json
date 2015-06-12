@@ -1,0 +1,31 @@
+{
+  "name": "Ageascope",
+  "description": "Ageascope",
+  "version": "0.0.1",
+  "main": "lib/main.html",
+  "window": {
+    "title": "Ageascope",
+    "icon": "lib/img/a16.png",
+    "width": 800,
+    "height": 600,
+    "toolbar": true,
+    "frame": true,
+    "position": "center",
+    "fullscreen": false,
+    "resizable": true
+  },
+  "platformOverrides": {
+    "win": {
+      "window": {
+        "toolbar": false
+      }
+    }
+  },
+  "node-remote": "<local>",
+  "dependencies": {
+    "express": "^3.20.1",
+    "getmac": "^1.0.7",
+    "nedb": "~0.8.0",
+    "sprintf": "^0.1.5"
+  }
+}

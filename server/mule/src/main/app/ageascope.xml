@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" 
+  xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" 
+  xmlns:http="http://www.mulesoft.org/schema/mule/http" 
+  xmlns:json="http://www.mulesoft.org/schema/mule/json"
+  xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
+  xmlns:jdbc="http://www.mulesoft.org/schema/mule/jdbc"
+  xmlns:jersey="http://www.mulesoft.org/schema/mule/jersey"
+  xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+  xmlns:rest-router="http://www.mulesoft.org/schema/mule/rest-router"
+  xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+  xmlns:stdio="http://www.mulesoft.org/schema/mule/stdio" 
+  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
+  xmlns:spring="http://www.springframework.org/schema/beans"
+  xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+  xmlns:core="http://www.mulesoft.org/schema/mule/core"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xsi:schemaLocation="
+    http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd 
+    http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+    http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/current/mule-cxf.xsd
+    http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+    http://www.mulesoft.org/schema/mule/jdbc http://www.mulesoft.org/schema/mule/jdbc/current/mule-jdbc.xsd
+    http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+    http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+    http://www.mulesoft.org/schema/mule/stdio http://www.mulesoft.org/schema/mule/stdio/current/mule-stdio.xsd 
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+    http://www.mulesoft.org/schema/mule/rest-router http://www.mulesoft.org/schema/mule/rest-router/current/mule-rest-router.xsd
+    http://www.mulesoft.org/schema/mule/jersey http://www.mulesoft.org/schema/mule/jersey/current/mule-jersey.xsd
+    http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+    http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd ">
+
+  <!-- set global properties -->
+  <global-property name="host" value="dev-esb-2"/>
+  <global-property name="port" value="8007"/>
+
+  <vm:connector name="memory">
+    <vm:queue-profile maxOutstandingMessages="500"/>
+  </vm:connector>
+
+
+  <spring:bean id="MononokePool" name="Mononoke" class="org.enhydra.jdbc.standard.StandardXADataSource" destroy-method="shutdown">
+    <spring:property name="driverName" value="oracle.jdbc.driver.OracleDriver"/>
+    <spring:property name="url" value="jdbc:oracle:thin:@10.20.57.125:1521:BERTHA"/>
+    <spring:property name="user" value="MONONOKE" />
+    <spring:property name="password" value="Password1" />
+    <spring:property name="minCon" value="10" />
+    <spring:property name="maxCon" value="100" />
+  </spring:bean>
+
+  <jdbc:connector name="jdbcConnector" dataSource-ref="Mononoke" 
+    validateConnections="false" transactionPerMessage="true" queryTimeout="10">
+    <jdbc:query key="INSERT.VIPER.EMAIL" value="INSERT INTO VIPER_EMAIL (
+      EMAIL,USER_NAME,TIMESTAMP   
+    ) VALUES (
+     #[message.payload.email]
+    ,#[message.payload.user]
+    ,CURRENT_TIMESTAMP
+    )"/>
+    <jdbc:query key="INSERT.VIPER.REG" value="INSERT INTO VIPER_REGISTRATION (
+      REGISTRATION,USER_NAME,TIMESTAMP   
+    ) VALUES (
+     #[message.payload.reg]
+    ,#[message.payload.user]
+    ,CURRENT_TIMESTAMP
+    )"/>
+    <jdbc:query key="INSERT.LOG" value="INSERT INTO AGEASCOPE_LOG (
+      USERNAME,HOSTNAME,IP,PORT,MAC,RELEASE,TIMESTAMP,LOG_DATE
+    ) VALUES (
+     #[message.payload.user]
+    ,#[message.payload.hostname]
+    ,#[message.payload.ip]
+    ,#[message.payload.port]
+    ,#[message.payload.mac]
+    ,#[message.payload.release]
+    ,#[message.payload.timestamp]
+    ,CURRENT_TIMESTAMP
+    )"
+    />
+    <jdbc:query key="SELECT.VIPER.EMAIL" value="SELECT EMAIL FROM VIPER_EMAIL WHERE EMAIL = #[message.payload.email]"/>
+    <jdbc:query key="DELETE.VIPER.EMAIL" value="DELETE FROM VIPER_EMAIL WHERE EMAIL = #[message.payload.email]"/>
+    <jdbc:query key="SELECT.SERVICES" value="SELECT AGEASCOPE_SERVICES.SERVICE, AGEASCOPE_USERS.HEADSET_ID FROM AGEASCOPE_SERVICES INNER JOIN AGEASCOPE_USERS_SERVICES ON AGEASCOPE_USERS_SERVICES.SERVICE_ID = AGEASCOPE_SERVICES.ID INNER JOIN AGEASCOPE_USERS ON AGEASCOPE_USERS_SERVICES.USER_ID = AGEASCOPE_USERS.ID WHERE AGEASCOPE_USERS.WINDOWS_USERNAME = #[message.payload.user]"/>
+
+    <jdbc:query key="SELECT.USERS" value="SELECT * FROM AGEASCOPE_USERS"/>
+    <jdbc:query key="SELECT.USER" value="SELECT USERNAME, IP, PORT, TIMESTAMP FROM (SELECT * FROM AGEASCOPE_LOG WHERE USERNAME = #[message.payload.recipient] AND IP IS NOT NULL ORDER BY LOG_DATE DESC ) WHERE ROWNUM = 1"/>
+    <jdbc:query key="UPDATE.USER.EXTENSION" value="UPDATE AGEASCOPE_USERS SET HEADSET_ID = #[message.payload.extension] WHERE WINDOWS_USERNAME = #[message.payload.windows_username]"/>
+    <jdbc:query key="SELECT.VIPER.REG" value="SELECT REGISTRATION FROM VIPER_REGISTRATION WHERE REGISTRATION = #[message.payload.reg]"/>
+    <jdbc:query key="DELETE.VIPER.REG" value="DELETE FROM VIPER_REGISTRATION WHERE REGISTRATION = #[message.payload.reg]"/>
+  </jdbc:connector>
+
+
+  <http:listener-config name="HTTPListener" host="${host}" port="${port}" doc:name="HTTP Listener Configuration"/>
+
+  <flow name="staticFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/static/*" doc:name="HTTP"/>
+    <http:static-resource-handler resourceBase="${app.home}/classes/static/" defaultFile="index.html" doc:name="HTTP Static Resource Handler"/>
+    <choice-exception-strategy>
+      <catch-exception-strategy when="exception.causedBy(org.mule.transport.http.components.ResourceNotFoundException)">
+        <logger message="RESOURCE NOT FOUND #[message.inboundProperties['http.request.path']]" level="ERROR"/>
+      </catch-exception-strategy>
+    </choice-exception-strategy>
+  </flow>
+
+  <flow name="viperFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/viper/*" doc:name="HTTP"/>
+    
+    <choice doc:name="Choice">
+      <when expression="#[regex('/ageascope/viper/email', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <choice> 
+          <!-- ADD -->
+          <when expression="#[regex('add',message.payload.action)]">
+            <set-variable variableName="data" value="#[message.payload]"/>  
+            <set-variable variableName="msg" value="#[new java.lang.String()]"/>  
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.EMAIL" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <choice> 
+              <when expression="#[message.payload.size() == 0]">
+                <set-payload value="#[data]"/>
+                <jdbc:outbound-endpoint queryKey="INSERT.VIPER.EMAIL" connector-ref="jdbcConnector"/>
+                <set-variable variableName="msg" value="#['ok']"/>  
+              </when> 
+              <when expression="#[message.payload.size() != 0]">
+                <logger message="EXISTS: #[message.payload]" level="INFO"/> 
+                <set-variable variableName="msg" value="#['exists']"/> 
+              </when> 
+              <otherwise>
+                <set-variable variableName="msg" value="#['error']"/>  
+                <logger message="UNMATCHED ROUTE #[message.payload]" level="INFO"/>
+              </otherwise>
+            </choice>
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.msg=msg;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/> 
+          </when> 
+          <!-- SEARCH -->
+          <when expression="#[regex('search',message.payload.action)]">
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.EMAIL" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <set-variable variableName="results" value="#[message.payload]"/>  
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.results=results;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/>
+          </when>
+          <!-- REMOVE -->
+          <when expression="#[regex('remove',message.payload.action)]">
+            <set-variable variableName="data" value="#[message.payload]"/>  
+            <set-variable variableName="msg" value="#[new java.lang.String()]"/>  
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.EMAIL" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <choice> 
+              <when expression="#[message.payload.size() == 0]">
+                <set-variable variableName="msg" value="#['notexists']"/>  
+              </when> 
+              <when expression="#[message.payload.size() != 0]">
+                <set-payload value="#[data]"/>
+                <jdbc:outbound-endpoint queryKey="DELETE.VIPER.EMAIL" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+                <logger message="DELETED: #[message.payload]" level="INFO"/> 
+                <set-variable variableName="msg" value="#['ok']"/>  
+              </when> 
+              <otherwise>
+                <set-variable variableName="msg" value="#['error']"/>  
+                <logger message="UNMATCHED ROUTE #[message.payload]" level="INFO"/>
+              </otherwise>
+            </choice>
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.msg=msg;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/> 
+          </when> 
+          <otherwise>
+            <logger message="UNSUPPORTED VIPER EMAIL ACTION #[message.payload]" level="INFO"/>
+          </otherwise>
+        </choice>
+      </when>
+      
+      <when expression="#[regex('/ageascope/viper/reg', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <choice> 
+          <!-- ADD -->
+          <when expression="#[regex('add',message.payload.action)]">
+            <set-variable variableName="data" value="#[message.payload]"/>  
+            <set-variable variableName="msg" value="#[new java.lang.String()]"/>  
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.REG" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <choice> 
+              <when expression="#[message.payload.size() == 0]">
+                <set-payload value="#[data]"/>
+                <jdbc:outbound-endpoint queryKey="INSERT.VIPER.REG" connector-ref="jdbcConnector"/>
+                <set-variable variableName="msg" value="#['ok']"/>  
+              </when> 
+              <when expression="#[message.payload.size() != 0]">
+                 
+                <logger message="EXISTS: #[message.payload]" level="INFO"/> 
+                <set-variable variableName="msg" value="#['exists']"/> 
+              </when> 
+              <otherwise>
+                <set-variable variableName="msg" value="#['error']"/>  
+                <logger message="UNMATCHED ROUTE #[message.payload]" level="INFO"/>
+              </otherwise>
+            </choice>
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.msg=msg;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/> 
+          </when> 
+          <!-- SEARCH -->
+          <when expression="#[regex('search',message.payload.action)]">
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.REG" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <set-variable variableName="results" value="#[message.payload]"/>  
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.results=results;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/>
+          </when>
+          <!-- REMOVE -->
+          <when expression="#[regex('remove',message.payload.action)]">
+            <set-variable variableName="data" value="#[message.payload]"/>  
+            <set-variable variableName="msg" value="#[new java.lang.String()]"/>  
+            <jdbc:outbound-endpoint queryKey="SELECT.VIPER.REG" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+            <choice> 
+              <when expression="#[message.payload.size() == 0]">
+                <set-variable variableName="msg" value="#['notexists']"/>  
+              </when> 
+              <when expression="#[message.payload.size() != 0]">
+                <set-payload value="#[data]"/>
+                <jdbc:outbound-endpoint queryKey="DELETE.VIPER.REG" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+                <logger message="DELETED: #[message.payload]" level="INFO"/> 
+                <set-variable variableName="msg" value="#['ok']"/>  
+              </when> 
+              <otherwise>
+                <set-variable variableName="msg" value="#['error']"/>  
+                <logger message="UNMATCHED ROUTE #[message.payload]" level="INFO"/>
+              </otherwise>
+            </choice>
+            <set-payload value="#[new java.util.HashMap()]"/>
+            <expression-transformer expression="#[
+              message.payload.msg=msg;
+              message.payload]" />
+            <json:object-to-json-transformer doc:name="Object to JSON"/> 
+          </when> 
+          <otherwise>
+            <logger message="UNSUPPORTED VIPER REG ACTION #[message.payload]" level="INFO"/>
+          </otherwise>
+        </choice>
+
+      </when>
+      <otherwise>
+        <logger message="UNSUPPORTED VIPER PATH #[message.inboundProperties['http.request.path']]" level="INFO"/>
+      </otherwise>
+    </choice>
+  </flow>
+
+  <flow name="clientFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/client/*" doc:name="HTTP"/>
+    <choice doc:name="Choice">
+      <when expression="#[regex('/ageascope/client/log', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <logger message="INCOMING: #[message.inboundProperties['http.request.path']] PAYLOAD: #[message.payload]" level="INFO"/>
+        <set-property propertyName="user" value="#[message.payload.user]" doc:name="Property"/>        
+        <jdbc:outbound-endpoint queryKey="INSERT.LOG" connector-ref="jdbcConnector"/>
+        <jdbc:outbound-endpoint queryKey="SELECT.SERVICES" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+        <set-variable variableName="services" value="#[new java.util.ArrayList()]"/> 
+        <set-variable variableName="hid" value="#[message.payload.isEmpty() ? '0' : message.payload[0].HEADSET_ID]"/> 
+        <foreach collection="#[message.payload]">
+          <expression-transformer expression="#[services.add(message.payload.SERVICE)]"/>
+        </foreach> 
+        <set-payload value="#[new java.util.HashMap()]"/>
+        <expression-transformer expression="#[
+          message.payload.user=message.outboundProperties.user;
+          message.payload.services=services;
+          message.payload.hid=hid;
+          message.payload]" />
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+      <when expression="#[regex('/ageascope/client/info', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <logger message="INCOMING: #[message.inboundProperties['http.request.path']] PAYLOAD: #[message.payload]" level="INFO"/>
+        <set-property propertyName="user" value="#[message.payload.user]" doc:name="Property"/>        
+        <jdbc:outbound-endpoint queryKey="SELECT.SERVICES" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+        <set-variable variableName="services" value="#[new java.util.ArrayList()]"/> 
+        <set-variable variableName="hid" value="#[message.payload.isEmpty() ? '0' : message.payload[0].HEADSET_ID]"/> 
+        <foreach collection="#[message.payload]">
+          <expression-transformer expression="#[services.add(message.payload.SERVICE)]"/>
+        </foreach> 
+        <set-payload value="#[new java.util.HashMap()]"/>
+        <expression-transformer expression="#[
+          message.payload.user=message.outboundProperties.user;
+          message.payload.services=services;
+          message.payload.hid=hid;
+          message.payload]" />
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+
+      <otherwise>
+        <logger message="UNSUPPORTED CLIENT PATH #[message.inboundProperties['http.request.path']]" level="INFO"/>
+      </otherwise>
+    </choice>
+  </flow>
+
+  <flow name="adminFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/admin/*" doc:name="HTTP"/>
+    <choice doc:name="Choice">
+      <when expression="#[regex('/ageascope/admin/user', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <logger message="GETTING USER HOST DETAILS FOR: #[message.payload]" level="INFO"/>
+        <jdbc:outbound-endpoint queryKey="SELECT.USER" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+      <when expression="#[regex('/ageascope/admin/users', message.inboundProperties['http.request.path'])]">
+        <jdbc:outbound-endpoint queryKey="SELECT.USERS" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+        <set-variable variableName="users" value="#[new java.util.ArrayList()]"/> 
+        <foreach collection="#[message.payload]">
+          <scripting:component doc:name="">
+            <scripting:script engine="groovy">
+              <scripting:text>
+                def r = new java.util.HashMap(); 
+                r.put("id",message.payload.ID);
+                r.put("windows_username",message.payload.WINDOWS_USERNAME);
+                r.put("dialler_username",message.payload.DIALLER_USERNAME);
+                r.put("headset_id",message.payload.HEADSET_ID);
+                return r;
+              </scripting:text>
+            </scripting:script>
+          </scripting:component>
+          <expression-transformer expression="#[users.add(message.payload)]"/>
+        </foreach>
+        <set-payload value="#[new java.util.HashMap()]"/>
+        <expression-transformer expression="#[
+          message.payload.users=users;
+          message.payload]" />
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+      <otherwise>
+        <logger message="UNSUPPORTED ADMIN PATH #[message.inboundProperties['http.request.path']]" level="INFO"/>
+      </otherwise>
+    </choice>
+  </flow>
+
+  <flow name="userFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/user/*" doc:name="HTTP"/>
+    <choice doc:name="Choice">
+      <when expression="#[regex('/ageascope/user/extension', message.inboundProperties['http.request.path'])]">
+        <json:json-to-object-transformer returnClass="java.util.HashMap" />
+        <logger message="GETTING USER DETAILS FOR: #[message.payload]" level="INFO"/>
+        <jdbc:outbound-endpoint queryKey="UPDATE.USER.EXTENSION" connector-ref="jdbcConnector" exchange-pattern="request-response"/>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+      <otherwise>
+        <logger message="UNSUPPORTED ADMIN PATH #[message.inboundProperties['http.request.path']]" level="INFO"/>
+      </otherwise>
+    </choice>
+  </flow>
+
+
+  <flow name="diFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/di/*" doc:name="HTTP"/>
+    <!--
+    <scripting:component doc:name="USED FOR SIMULATION">
+      <scripting:script engine="groovy">
+        <scripting:text>
+          sleep(1000)
+        </scripting:text>
+      </scripting:script>
+    </scripting:component>
+    -->
+    <choice doc:name="Choice">
+      <when expression="#[regex('/ageascope/di/batch', message.inboundProperties['http.request.path'])]">
+        <set-payload value="#[
+          bjr=new dataservices.generated.RunBatchJobRequest();
+          bjr.jobName='RAMAN_TEST';
+          bjr.repoName='dixibc';
+          bjr]"/>
+        <http:outbound-endpoint 
+          exchange-pattern="request-response" 
+          host="mis-di-3" 
+          port="28080" 
+          path="DataServices/servlet/webservices?ver=2.1" 
+          method="POST" 
+          doc:name="HTTP">
+          <cxf:jaxws-client operation="Run_Batch_Job" clientClass="dataservices.generated.DataServicesServer" port="Batch_Job_Admin" doc:name="SOAP"/>
+        </http:outbound-endpoint>
+        <set-property propertyName="pid" value="#[message.payload.pid]" doc:name="Property"/>
+        <set-property propertyName="cid" value="#[message.payload.cid]" doc:name="Property"/>
+        <set-property propertyName="rid" value="#[message.payload.rid]" doc:name="Property"/>
+        <set-property propertyName="errorMessage" value="#[message.payload.errorMessage]" doc:name="Property"/>
+        <set-payload value="#[new java.util.HashMap()]" doc:name="Set Payload"/>
+        <expression-transformer expression="#[
+    	  message.payload.pid = message.outboundProperties.pid;
+    	  message.payload.cid = message.outboundProperties.cid;
+    	  message.payload.rid = message.outboundProperties.rid;
+	  message.payload.errorMessage = message.outboundProperties.errorMessage;
+	  message.payload]" doc:name="Expression"/>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+      </when>
+      
+      <otherwise>
+        <logger message="UNSUPPORTED DI PATH #[message.inboundProperties['http.request.path']]" level="INFO"/>
+      </otherwise>
+    </choice>
+  </flow>
+
+  <flow name="strataFlow">
+    <http:listener config-ref="HTTPListener" path="/ageascope/strata/*" doc:name="HTTP"/>
+    <logger message="STRATA PAYLOAD: #[message.payload]" level="INFO"/>
+    <jersey:resources>
+      <component class="strata.WebClient" />
+    </jersey:resources>
+  </flow>
+
+</mule>

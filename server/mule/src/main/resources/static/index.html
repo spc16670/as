@@ -1,0 +1,143 @@
+<html ng-app="Ageascope">
+<head>
+  <link href="/ageascope/static/css/bootstrap-3.2.0/bootstrap.min.css" rel="stylesheet">
+  <link href="/ageascope/static/css/angular-growl-0.7.3/angular-growl.min.css" rel="stylesheet">
+  <link href="/ageascope/static/css/angular-busy-4.1.0/angular-busy.min.css" rel="stylesheet">
+  <link href="/ageascope/static/css/angular-xeditable-0.1.8/xeditable.css" rel="stylesheet">
+  <link href="/ageascope/static/css/ageascope.css" rel="stylesheet">
+
+  <script src="/ageascope/static/libs/angular-1.2.26/angular.min.js"></script>
+  <script src="/ageascope/static/libs/angular-animate-1.2.26/angular-animate.min.js"></script>
+  <script src="/ageascope/static/libs/angular-ui-0.12.1/ui-bootstrap-tpls.min.js"></script>
+  <script src="/ageascope/static/libs/angular-ui-router-0.2.14/angular-ui-router.min.js"></script>
+  <script src="/ageascope/static/libs/angular-growl-0.7.3/angular-growl.min.js"></script>
+  <script src="/ageascope/static/libs/angular-busy-4.1.0/angular-busy.min.js"></script>
+  <script src="/ageascope/static/libs/angular-xeditable-0.1.8/xeditable.min.js"></script>
+
+  <script src="/ageascope/static/app/controllers/Main.js"></script>
+  <script src="/ageascope/static/app/controllers/Dialler.js"></script>
+  <script src="/ageascope/static/app/controllers/News.js"></script>
+  <script src="/ageascope/static/app/controllers/Viper.js"></script>
+  <script src="/ageascope/static/app/controllers/Di.js"></script>
+  <script src="/ageascope/static/app/controllers/Settings.js"></script>
+  <script src="/ageascope/static/app/controllers/Admin.js"></script>
+  <script src="/ageascope/static/app/controllers/Strata.js"></script>
+  <script src="/ageascope/static/app/directives/Validate.js"></script>
+  <script src="/ageascope/static/app/directives/Ageascope.js"></script>
+  <script src="/ageascope/static/app/services/Config.js"></script>
+  <script src="/ageascope/static/app/services/Strata.js"></script>
+  <script src="/ageascope/static/app/services/News.js"></script>
+  <script src="/ageascope/static/app/services/Partial.js"></script>
+  <script src="/ageascope/static/app/services/Dialler.js"></script>
+  <script src="/ageascope/static/app/services/Rest.js"></script>
+  <script src="/ageascope/static/app/services/Auth.js"></script>
+  <script src="/ageascope/static/app/services/Gui.js"></script>
+  <script src="/ageascope/static/app/services/System.js"></script>
+  <script src="/ageascope/static/app/services/Http.js"></script>
+  <script src="/ageascope/static/app/services/Ageascope.js"></script>
+  <script src="/ageascope/static/app/ageascope.js"></script>
+</head>
+<body ng-controller="MainController">
+
+    <!-- Fixed navbar -->
+  <nav class="navbar navbar-default navbar-fixed-top" cg-busy="spinnerBusy">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand active" ui-sref="shell.home">
+         <img src="/ageascope/static/img/logo.png" style="float:left;">
+        </a>
+      </div>
+
+      <div id="navbar" class="navbar-collapse collapse">
+
+        <ul class="nav navbar-nav">
+
+          <li ng-class="{active: $state.includes('shell.dialler')}" ng-if="services.indexOf('dialler') != -1"> 
+            <a href="#"  ui-sref="shell.dialler">
+              <span class="glyphicon glyphicon-phone-alt" aria-hidden="true"></span>
+                Dialler
+            </a>
+          </li>
+
+          <li ng-class="{active: $state.includes('shell.strata')}" ng-if="services.indexOf('strata') != -1"> 
+            <a href="#"  ui-sref="shell.strata">
+              <span class="glyphicon glyphicon-cloud" aria-hidden="true"></span>
+                Strata
+            </a>
+          </li>
+
+          <li class="dropdown" dropdown ng-if="services.indexOf('dataservices') != -1">
+            <a href="#" class="dropdown-toggle" dropdown-toggle role="button" aria-expanded="false">
+              <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
+              DataServices<span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu" role="menu">
+              <li><a ui-sref="shell.dataservices">Batch</a></li>
+            </ul>
+          </li>
+
+          <li class="dropdown" dropdown>
+            <a href="#" class="dropdown-toggle" dropdown-toggle role="button" aria-expanded="false">
+              <span class="glyphicon glyphicon-ban-circle" aria-hidden="true"></span>  Viper<span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu" role="menu">
+              <li><a ui-sref="shell.viper-email"><span class="glyphicon glyphicon-envelope" aria-hidden="true"></span>  Email</a></li>
+              <li><a ui-sref="shell.viper-reg"><span class="glyphicon glyphicon-road" aria-hidden="true"></span>  Car Registration</a></li>
+            </ul>
+          </li>
+        </ul>
+        
+        <ul class="nav navbar-nav navbar-right">
+          <li class="dropdown" avatar-img dropdown>
+            <a href="#"class="dropdown-toggle" avatar-img dropdown-toggle role="button" aria-expanded="false">
+              <span aria-hidden="true"></span>
+              &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp {{ user }} 
+              <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu" role="menu">
+              <li><a href="#" ng-if="services.indexOf('admin') != -1" ui-sref="shell.admin"><span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span>  Admin</a></li>
+              <li><a href="#" ui-sref="shell.settings"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span>  Settings</a></li>
+              <li role="presentation" class="divider"></li>
+              <li><a href="#" ng-click="close()"><span class="glyphicon glyphicon-off" aria-hidden="true"></span>  Exit</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div><!--/.nav-collapse -->
+
+    </div>
+  </nav>
+
+  <!-- Begin page content -->
+  <div>
+    <div growl></div>
+    <div ui-view></div> 
+    <div ui-view="shell.home"></div>
+    <div ui-view="shell.dialler"></div>
+
+    <!-- VIPER -->
+    <div>
+      <div ui-view="shell.viper-email"></div>
+      <div ui-view="shell.viper-reg"></div>
+    </div> <!-- ./VIPER -->
+
+    <div ui-view="shell.dataservices"></div>
+    <div ng-controller="NewsController"></div>
+
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="text-muted"><span class="glyphicon glyphicon-copyright-mark" aria-hidden="true">
+      </span>  Ageascope is developed and maintained at Kwik Fit Insurance  </p>
+    </div>
+  </footer>
+
+</body>
+</html>
+

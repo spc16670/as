@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?if $(var.Platform) = x64 ?>
+<?define ReleaseFolder = "..\rel\build\Ageascope\win64" ?>
+<?define Win64 = "yes" ?>
+<?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+<?define ReleaseFolder = "..\rel\build\Ageascope\win32" ?>
+<?define Win64 = "no" ?>
+<?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?endif ?>
+
+
+<!-- The name of the product -->
+<?define Name = "Ageascope" ?>
+<!-- The product executable -->
+<!-- The product executable -->
+<?define ExecutableName = "Ageascope.exe" ?>
+<!-- Other files accompanying the executable -->
+<?define Dependency1 = "ffmpegsumo.dll" ?>
+<?define Dependency2 = "icudtl.dat" ?>
+<?define Dependency3 = "libEGL.dll" ?>
+<?define Dependency4 = "libGLESv2.dll" ?>
+<?define Dependency5 = "nw.pak" ?>
+<!-- The manufacturer, for setup package publisher and folder info -->
+<?define Manufacturer = "KFIS" ?>
+<!-- The version number of this setup package-->
+<?define Version = "0.3.3" ?>
+<!-- UpgradeCode must be unique and not changed once the first version of the program is installed. -->
+<?define UpgradeCode = "{79f9d453-a03f-41dc-ad13-00a9159556cb}" ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="$(var.Name)" Manufacturer="$(var.Manufacturer)" UpgradeCode="$(var.UpgradeCode)" Version="$(var.Version)" Language="1033">
+  
+    <!-- The Platform Element specifies the Target system, for WinXP change to "x86" --> 
+    <Package InstallerVersion="300" Compressed="yes" Platform="$(var.Platform)"/>
+    <!-- Media element describes a disk that makes up the source media for the installation. -->    
+    <Media Id="1" Cabinet="Ageascope.cab" EmbedCab="yes" />
+    <!-- Allow upgrades and prevent downgrades -->
+    <MajorUpgrade DowngradeErrorMessage="A later version of [ProductName] is already installed. Setup will now exit." />
+
+    <!-- DEFINE INSTALLL LOCATION (c:\Program Files\KFIS\Ageascope) -->
+    <!-- Define the directory structure - defines a directory for the installation of the main application executable -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- Uses a pre-defined Windows Installer property to reference the Program Files folder  -->
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
+        <!-- Create a folder inside program files with the name of the Manufacturer variable defined on the top -->
+        <Directory Id="ROOTDIRECTORY" Name="$(var.Manufacturer)">
+          <!-- Create a folder inside $Manufacturer folder called (Ageascope) -->
+          <Directory Id="INSTALLFOLDER" Name="$(var.Name)">
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu Installation -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ProgramMenuSubfolder" Name="$(var.Name) $(var.Platform)">
+	</Directory>
+      </Directory>
+
+    </Directory>
+
+    <!-- SPECIFY THE INSTALLATION ELEMENTS -->
+    <!-- The files inside this DirectoryRef are linked to the Ageascope directory via INSTALLFOLDER -->
+    <DirectoryRef Id="INSTALLFOLDER">
+    <!-- A file is added to the installer using two elements: 
+      a <Component> element to specify an atomic unit of installation and 
+      a <File> element to specify the file that should be installed. 
+    -->
+      <!-- Create a single component which will have the Ageascope.exe and associated nw dlls -->
+      <Component Id="AgeascopeClient" Guid="481f6f8e-f32f-11e4-863f-005056aa6970">
+        <!-- Copies the TestService.exe file using the project reference preprocessor variables. 
+            The KeyPath element is used to determine whether the component is installed.
+         -->
+        <File Id="$(var.ExecutableName)" Source="$(var.ReleaseFolder)\$(var.ExecutableName)" KeyPath="yes" Checksum="yes" />
+        <File Id="$(var.Dependency1)" Source="$(var.ReleaseFolder)\$(var.Dependency1)" />
+        <File Id="$(var.Dependency2)" Source="$(var.ReleaseFolder)\$(var.Dependency2)" />
+        <File Id="$(var.Dependency3)" Source="$(var.ReleaseFolder)\$(var.Dependency3)" />
+        <File Id="$(var.Dependency4)" Source="$(var.ReleaseFolder)\$(var.Dependency4)" />
+        <File Id="$(var.Dependency5)" Source="$(var.ReleaseFolder)\$(var.Dependency5)" />
+
+        <!-- Remove all files from the INSTALLFOLDER on uninstall -->
+        <RemoveFile Id="ALLFILES" Name="*.*" On="both" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Creates an entry in the start menu -->
+    <DirectoryRef Id="ProgramMenuSubfolder">
+      <Component Id="ApplicationShortcuts" Guid="4e31e640-f32f-11e4-9c38-005056aa6970">
+        <Shortcut Id="ApplicationShortcut1" Name="$(var.Name) $(var.Platform) $(var.Version)" Description="$(var.Name)" 
+	  Target="[INSTALLFOLDER]\$(var.ExecutableName)" WorkingDirectory="INSTALLFOLDER"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.Manufacturer)\$(var.Name)" 
+	  Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+	<RemoveFolder Id="ProgramMenuSubfolder" On="uninstall"/>
+      </Component>	
+    </DirectoryRef>
+
+    <!-- Creates an Autostart entry in the registry. The Win64 specifies Win7 install - refer to Platform -->
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="RegistryAutoStart" Guid="5338d91e-f32f-11e4-a9f5-005056aa6970" Win64="$(var.Win64)">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
+           <RegistryValue Type="string" Name="$(var.Name)AutoRun" Value="[INSTALLFOLDER]$(var.ExecutableName)"/>
+	</RegistryKey>
+	<RemoveRegistryKey Action="removeOnUninstall" Root="HKLM" 
+          Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run\$(var.Name)AutoRun"/>
+      </Component>
+    </DirectoryRef>
+
+    <!-- Tell WiX to install the files -->
+    <Feature Id="MainApplication" Title="Main Application" Level="1">
+      <ComponentRef Id="AgeascopeClient" />
+      <ComponentRef Id="ApplicationShortcuts"/>
+      <ComponentRef Id="RegistryAutoStart"/>
+    </Feature>
+
+  </Product>
+</Wix>
